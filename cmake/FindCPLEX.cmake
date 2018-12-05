@@ -24,36 +24,28 @@ if (UNIX)
     else ()
         set(CPLEX_ARCH x86)
     endif ()
-    if (APPLE)
-        set(CPLEX_ILOG_DIRS $ENV{HOME}/Applications/IBM/ILOG ${CPLEX_ILOG_DIRS})
-        foreach (suffix "osx" "darwin9_gcc4.0")
-            set(CPLEX_LIB_PATH_SUFFIXES
-                    ${CPLEX_LIB_PATH_SUFFIXES} lib/${CPLEX_ARCH}_${suffix}/static_pic)
-        endforeach ()
-    else ()
-        set(CPLEX_LIB_PATH_SUFFIXES
-                lib/${CPLEX_ARCH}_sles10_4.1/static_pic lib/${CPLEX_ARCH}_linux/static_pic)
-    endif ()
-else ()
+    set(CPLEX_LIB_PATH_SUFFIXES lib/${CPLEX_ARCH}_sles10_4.1/static_pic lib/${CPLEX_ARCH}_linux/static_pic)
+
+elseif (WIN32)
     set(CPLEX_ILOG_DIRS "C:/Program Files/IBM/ILOG")
     if (CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(CPLEX_ARCH x64)
-    else ()
+    else (WIN)
         set(CPLEX_ARCH x86)
         set(CPLEX_ILOG_DIRS "C:/Program Files (x86)/IBM/ILOG" ${CPLEX_ILOG_DIRS})
     endif ()
-    if (MSVC10)
+    message(STATUS "architecture: ${CPLEX_ARCH}")
+    message(STATUS "cplex_ilog_path set down in windows")
+
+elseif (APPLE)
+    set(CPLEX_ILOG_DIRS $ENV{HOME}/Applications/IBM/ILOG ${CPLEX_ILOG_DIRS})
+    foreach (suffix "osx" "darwin9_gcc4.0")
         set(CPLEX_LIB_PATH_SUFFIXES
-                lib/${CPLEX_ARCH}_windows_vs2010/stat_mda)
-        set(CPLEX_LIB_PATH_SUFFIXES_DEBUG
-                lib/${CPLEX_ARCH}_windows_vs2010/stat_mdd)
-    elseif (MSVC9)
-        set(CPLEX_LIB_PATH_SUFFIXES
-                lib/${CPLEX_ARCH}_windows_vs2008/stat_mda)
-        set(CPLEX_LIB_PATH_SUFFIXES_DEBUG
-                lib/${CPLEX_ARCH}_windows_vs2008/stat_mdd)
-    endif ()
+                ${CPLEX_LIB_PATH_SUFFIXES} lib/${CPLEX_ARCH}_${suffix}/static_pic)
+    endforeach ()
+else ()
 endif ()
+
 if (NOT CPLEX_STUDIO_DIR)
     foreach (dir ${CPLEX_ILOG_DIRS})
         file(GLOB CPLEX_STUDIO_DIRS "${dir}/CPLEX_Studio*")
@@ -68,19 +60,45 @@ if (NOT CPLEX_STUDIO_DIR)
     if (NOT CPLEX_STUDIO_DIR_)
         set(CPLEX_STUDIO_DIR_ CPLEX_STUDIO_DIR-NOTFOUND)
     endif ()
-    set(CPLEX_STUDIO_DIR ${CPLEX_STUDIO_DIR_} CACHE PATH
-            "Path to the CPLEX Studio directory")
+    set(CPLEX_STUDIO_DIR ${CPLEX_STUDIO_DIR_})
+    message(STATUS "CPLEX Studio dir: ${CPLEX_STUDIO_DIR}")
 endif ()
 
 find_package(Threads)
+
 
 # ----------------------------------------------------------------------------
 # CPLEX
 
 set(CPLEX_DIR ${CPLEX_STUDIO_DIR}/cplex)
+message(STATUS "CPLEX dir: ${CPLEX_DIR}")
+
 
 # Find the CPLEX include directory.
 find_path(CPLEX_INCLUDE_DIR ilcplex/cplex.h PATHS ${CPLEX_DIR}/include)
+message(STATUS "CPLEX include dir: ${CPLEX_INCLUDE_DIR}")
+
+
+# Set up cplex library prefix path for windows
+if (WIN32)
+    foreach (dir ${CPLEX_DIR})
+        file(GLOB CPLEX_LIB_SUFFIXS "${dir}/lib/*windows_vs*")
+        list(SORT CPLEX_LIB_SUFFIXS)
+        list(REVERSE CPLEX_LIB_SUFFIXS)
+        if (CPLEX_LIB_SUFFIXS)
+            list(GET CPLEX_LIB_SUFFIXS 0 CPLEX_LIB_SUFFIX_)
+            message(STATUS "Found CPLEX_LIB_SUFFIX: ${CPLEX_LIB_SUFFIX_}")
+            break()
+        endif ()
+    endforeach ()
+    if (NOT CPLEX_LIB_SUFFIX_)
+        set(CPLEX_LIB_SUFFIX_ CPLEX_LIB_SUFFIX-NOTFOUND)
+    endif ()
+    get_filename_component(CPLEX_LIB_PATH_SUFFIXES_N ${CPLEX_LIB_SUFFIX_} NAME)
+    set(CPLEX_LIB_PATH_SUFFIXES lib/${CPLEX_LIB_PATH_SUFFIXES_N}/stat_mda)
+    set(CPLEX_LIB_PATH_SUFFIXES_DEBUG lib/${CPLEX_LIB_PATH_SUFFIXES_N}/stat_mdd)
+    message(STATUS "CPLEX_LIB_PATH_SUFFIXES: ${CPLEX_LIB_PATH_SUFFIXES}")
+endif ()
 
 macro(find_win_cplex_library var path_suffixes)
     foreach (s ${path_suffixes})
@@ -100,18 +118,17 @@ if (UNIX)
     find_library(CPLEX_LIBRARY NAMES cplex
             PATHS ${CPLEX_DIR} PATH_SUFFIXES ${CPLEX_LIB_PATH_SUFFIXES})
     set(CPLEX_LIBRARY_DEBUG ${CPLEX_LIBRARY})
-elseif (NOT CPLEX_LIBRARY)
-    # On Windows the version is appended to the library name which cannot be
-    # handled by find_library, so search manually.
+elseif (WIN32)
     find_win_cplex_library(CPLEX_LIB "${CPLEX_LIB_PATH_SUFFIXES}")
-    set(CPLEX_LIBRARY ${CPLEX_LIB} CACHE FILEPATH "Path to the CPLEX library")
+    message(STATUS "Cplex_LIB: ${CPLEX_LIB}")
+    set(CPLEX_LIBRARY ${CPLEX_LIB})
     find_win_cplex_library(CPLEX_LIB "${CPLEX_LIB_PATH_SUFFIXES_DEBUG}")
-    set(CPLEX_LIBRARY_DEBUG ${CPLEX_LIB} CACHE
-            FILEPATH "Path to the debug CPLEX library")
+    set(CPLEX_LIBRARY_DEBUG ${CPLEX_LIB})
     if (CPLEX_LIBRARY MATCHES ".*/(cplex.*)\\.lib")
         file(GLOB CPLEX_DLL_ "${CPLEX_DIR}/bin/*/${CMAKE_MATCH_1}.dll")
-        set(CPLEX_DLL ${CPLEX_DLL_} CACHE PATH "Path to the CPLEX DLL.")
+        set(CPLEX_DLL ${CPLEX_DLL_})
     endif ()
+    message(STATUS "Cplex_DLL: ${CPLEX_DLL}")
 endif ()
 
 # Handle the QUIETLY and REQUIRED arguments and set CPLEX_FOUND to TRUE

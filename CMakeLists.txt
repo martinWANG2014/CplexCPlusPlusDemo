@@ -1,6 +1,9 @@
+## You can just modify your project name, in line 5.
+
 cmake_minimum_required(VERSION 2.8)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-project(Demo)
+set(MY_PROJECT_NAME Demo)
+project(${MY_PROJECT_NAME})
 
 ######## Cplex Dependency
 find_package(CPLEX REQUIRED)
@@ -17,6 +20,11 @@ endif()
 if(CPLEX_ILOCPLEX_FOUND)
     include_directories(${CPLEX_ILOCPLEX_INCLUDE_DIR})
     link_directories(${CPLEX_ILOCPLEX_LIBRARY})
+endif()
+
+if(CPLEX_CP_FOUND)
+    include_directories(${CPLEX_CP_INCLUDE_DIR})
+    link_directories(${CPLEX_CP_LIBRARY})
 endif()
 
 
@@ -49,6 +57,6 @@ file(GLOB HEADER_FILES include/*.h)
 file(GLOB SOURCE_FILES src/*.cpp)
 
 ######## Set executable file name, and add the source files for it.
-add_executable(Demo ${HEADER_FILES} ${SOURCE_FILES})
+add_executable(${MY_PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
 ######## Add Dependency Library
-target_link_libraries(Demo cplex-library cplex-concert ilocplex)
+target_link_libraries(${MY_PROJECT_NAME} cplex-library cplex-concert ilocplex cplex-cp)

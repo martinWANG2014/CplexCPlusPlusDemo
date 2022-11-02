@@ -133,6 +133,8 @@ elseif (WIN32)
     message(STATUS "Cplex_DLL: ${CPLEX_DLL}")
 endif ()
 
+set(FPHSA_NAME_MISMATCHED TRUE)
+
 # Handle the QUIETLY and REQUIRED arguments and set CPLEX_FOUND to TRUE
 # if all listed variables are TRUE.
 find_package_handle_standard_args(
